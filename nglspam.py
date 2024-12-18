@@ -1,126 +1,41 @@
-import json, random, time, httpx, sys, os
-from concurrent.futures import ThreadPoolExecutor
+import requests
 import threading
-from colorama import Fore, Style
-from time import strftime, gmtime
+import time
+import os
+os.system('cls' if os.name == 'nt' else 'clear')
 
-
-sent, errored = 0, 0
-
-
-class Console:
-    @staticmethod
-    def get_time() -> str:
-        return time.strftime("%H:%M:%S", time.gmtime())
-
-    @staticmethod
-    def logger(*content: tuple, status: bool) -> None:
-        lock = threading.Lock()
-        time = Console.get_time()
-
-        green = "[" + Fore.GREEN + Style.BRIGHT + "+" + Style.RESET_ALL + "] "
-        red = "[" + Fore.RED + Style.BRIGHT + "-" + Style.RESET_ALL + "] "
-        yellow = "[" + Fore.YELLOW + Style.BRIGHT + "!" + Style.RESET_ALL + "] "
-        with lock:
-            if status == "g":
-                sys.stdout.write(
-                    f'{Fore.YELLOW}[{time}]{Style.RESET_ALL}{green}{" ".join(content)}\n'
-                )
-            elif status == "r":
-                sys.stdout.write(
-                    f'{Fore.YELLOW}[{time}]{Style.RESET_ALL}{red}{" ".join(content)}\n'
-                )
-            elif status == "y":
-                sys.stdout.write(
-                    f'{Fore.YELLOW}[{time}]{Style.RESET_ALL}{yellow}{" ".join(content)}\n'
-                )
-
-    @staticmethod
-    def clear() -> None:
-        os.system("cls" if os.name == "nt" else "clear")
-
-
-def main(username, message, deviceid):
-    global errored
-    global sent
-
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:104.0) Gecko/20100101 Firefox/104.0",
+def logo():
+	print("""####################
+made by codecryptpythonic
+	
+use it for fun!
+####################
+	""")
+logo()
+def send_request(user, q, i):
+    h = "https://ngl.link/api/submit"
+    message = f"{q}"
+    data = {
+        "username": user,
+        "question": message,
+        "deviceId": "f6e16e07-0853-4bbb-b4b7-ed2fdb942642",
     }
-
-    client = httpx.Client(headers=headers)
-
     try:
-        postresp = client.post(
-            f"https://ngl.link/api/submit",
-            data={
-                "username": username,
-                "question": message,
-                "deviceId": deviceid,
-            },
-        )
-        if postresp.status_code == 200:
-            sent += 1
-            Console.logger(
-                f"Sent {message} to victim, Sent {sent} messages, Errored {errored} messages",
-                status="g",
-            )
-
-        elif postresp.status_code == 404:
-            Console.logger(f"User {username} does not exist", status="r")
-            exit()
-        elif postresp.status_code == 429:
-            Console.logger(f"User {username} is rate limited", status="r")
-        else:
-            Console.logger(postresp.status_code, status="r")
-
+        k = requests.post(h, data=data).text
+        print("sent!")
     except Exception as e:
-        errored += 1
-        Console.logger(f"Error: {e}", status="y")
-        main(username, message, deviceid)
+        print(f"Error: {e}")
+    time.sleep(0.5)
 
+user = input("Enter your username: ")
+q = input("Enter your message: ")
+idd = int(input("How many times do you want to send requests: "))
 
-def deviceid():
-    return "".join(
-        random.choice("0123456789abcdefghijklmnopqrstuvwxyz-") for i in range(36)
-    )
+threads = []
+for i in range(1, idd + 1):
+    thread = threading.Thread(target=send_request, args=(user, q, i))
+    threads.append(thread)
+    thread.start()
 
-
-def handler():
-    print(
-        Fore.LIGHTRED_EX
-        + """
-   
- █████╗ ██████╗ ██╗   ██╗ █████╗ ███╗   ██╗
-██╔══██╗██╔══██╗╚██╗ ██╔╝██╔══██╗████╗  ██║
-███████║██████╔╝ ╚████╔╝ ███████║██╔██╗ ██║
-██╔══██║██╔══██╗  ╚██╔╝  ██╔══██║██║╚██╗██║
-██║  ██║██║  ██║   ██║   ██║  ██║██║ ╚████║
-╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝
-                                           
-
-    """
-        + Fore.GREEN
-        + "Made by CODECRYPTPYTHONIC"
-        + Style.RESET_ALL
-    )
-
-    username = str(input("Enter username : "))
-    threadcount = int(input("Enter count: "))
-    with open("config.json") as config:
-        data = json.load(config)
-        delay = data["delay"]
-    message = str(input("Enter message: "))
-    with ThreadPoolExecutor(max_workers=threadcount) as executor:
-        for x in range(threadcount):
-            executor.submit(main, username, message, deviceid())
-            time.sleep(delay)
-
-    Console.logger(f"Sent {sent} messages to {username}.", status="g")
-
-
-if __name__ == "__main__":
-    handler()
+for thread in threads:
+    thread.join()
